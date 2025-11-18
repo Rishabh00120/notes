@@ -635,7 +635,13 @@
 
             // Set title
             titleEl.textContent = escapeHtml(title);
-            contentEl.innerHTML = ''; // Clear previous content
+            
+            // RESET: Clear content and reset scroll position to top
+            contentEl.innerHTML = ''; 
+            contentEl.scrollTop = 0; 
+
+            // RESET: Ensure default centering is ON (good for images)
+            contentEl.className = "p-4 flex-1 overflow-auto bg-slate-100 flex items-center justify-center";
 
             // --- IMAGE HANDLING ---
             if (fileType && fileType.startsWith('image/')) {
@@ -647,6 +653,9 @@
             // --- PDF HANDLING (Render ALL Pages) ---
             } else if (fileType === 'application/pdf' || (typeof content === 'string' && content.startsWith('data:application/pdf'))) {
                 
+                // FIX: Remove centering classes so the PDF starts at the top
+                contentEl.classList.remove('items-center', 'justify-center');
+
                 // Create a container for the PDF pages
                 const wrapper = document.createElement('div');
                 wrapper.className = "w-full flex flex-col items-center gap-4";
@@ -720,7 +729,6 @@
                 modal.querySelector('#preview-modal-content').classList.add('scale-100');
             });
         };
-
         window.hidePreview = () => {
             const modal = document.getElementById('preview-modal');
             modal.classList.add('opacity-0');
@@ -1188,5 +1196,6 @@
 </body>
 
 </html>
+
 
 
