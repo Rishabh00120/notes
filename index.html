@@ -5,6 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AuraDrop</title>
     <script src="https://cdn.tailwindcss.com"></script>
+	<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>
+        // Initialize the PDF worker immediately
+        const pdfjsLib = window['pdfjs-dist/build/pdf'];
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
@@ -622,7 +628,7 @@
             window.showPreview(item.content, item.title, item.fileType);
         };
 
-       window.showPreview = (content, title, fileType) => {
+      window.showPreview = (content, title, fileType) => {
             const modal = document.getElementById('preview-modal');
             const titleEl = document.getElementById('preview-title');
             const contentEl = document.getElementById('preview-content-area');
@@ -638,53 +644,67 @@
                 img.className = "max-w-full max-h-full object-contain rounded-lg";
                 contentEl.appendChild(img);
 
-            // --- PDF HANDLING (New & Improved) ---
+            // --- PDF HANDLING (Using PDF.js) ---
             } else if (fileType === 'application/pdf' || (typeof content === 'string' && content.startsWith('data:application/pdf'))) {
-                try {
-                    let pdfUrl = null;
+                
+                // Create a container for the PDF canvas
+                const wrapper = document.createElement('div');
+                wrapper.className = "w-full flex flex-col items-center gap-4";
+                
+                // Create Canvas (This is where the PDF will be drawn as an image)
+                const canvas = document.createElement('canvas');
+                canvas.className = "w-full h-auto border border-slate-200 rounded-lg shadow-sm bg-white";
+                wrapper.appendChild(canvas);
 
-                    // If content is a data URI (base64), convert to Blob URL
-                    if (typeof content === 'string' && content.startsWith('data:')) {
-                        const blob = dataURIToBlob(content);
-                        pdfUrl = URL.createObjectURL(blob);
-                    } else if (typeof content === 'string' && (content.startsWith('http') || content.startsWith('blob:'))) {
-                        pdfUrl = content;
-                    } else {
-                        throw new Error('Invalid PDF content');
-                    }
+                // Add "Download/Open" Button below it
+                const fallback = document.createElement('div');
+                fallback.className = "w-full text-center";
+                
+                // Calculate the Blob URL for the button
+                let pdfUrl = content;
+                if (typeof content === 'string' && content.startsWith('data:')) {
+                    const blob = dataURIToBlob(content);
+                    pdfUrl = URL.createObjectURL(blob);
+                }
+                
+                fallback.innerHTML = `
+                    <a href="${pdfUrl}" class="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-800 text-white font-bold text-sm shadow-lg active:scale-95 transition-transform" download="${title}.pdf">
+                        <i class="fa-solid fa-download"></i> Download PDF
+                    </a>
+                `;
+                wrapper.appendChild(fallback);
+                contentEl.appendChild(wrapper);
 
-                    // Create Wrapper
-                    const wrapper = document.createElement('div');
-                    wrapper.className = "w-full flex flex-col items-center"; // Added flex centering
+                // --- RENDER PDF ONTO CANVAS ---
+                const loadingTask = pdfjsLib.getDocument(pdfUrl);
+                loadingTask.promise.then(function(pdf) {
+                    // Fetch the first page
+                    pdf.getPage(1).then(function(page) {
+                        const scale = 1.5; // Better quality
+                        const viewport = page.getViewport({scale: scale});
 
-                    // 1. Try the iFrame (Visual Preview)
-                    const iframe = document.createElement('iframe');
-                    iframe.src = pdfUrl;
-                    iframe.className = "w-full h-[75vh] border-0 rounded-lg bg-white";
-                    iframe.type = "application/pdf";
-                    wrapper.appendChild(iframe);
+                        // Prepare canvas using PDF page dimensions
+                        const context = canvas.getContext('2d');
+                        canvas.height = viewport.height;
+                        canvas.width = viewport.width;
 
-                    // 2. Add the Fallback Button (Guarantees access on mobile)
-                    const fallback = document.createElement('div');
-                    fallback.className = "w-full text-center mt-4 p-4 bg-slate-200 rounded-xl";
-                    fallback.innerHTML = `
-                        <p class="text-sm text-slate-600 mb-2 font-bold">Having trouble viewing?</p>
-                        <a id="open-pdf-btn" href="${pdfUrl}" class="inline-block px-6 py-3 rounded-xl bg-indigo-600 text-white font-bold shadow-md active:scale-95 transition-transform" target="_blank">
-                            Open PDF in New Tab
-                        </a>
-                    `;
-                    wrapper.appendChild(fallback);
+                        // Render PDF page into canvas context
+                        const renderContext = {
+                            canvasContext: context,
+                            viewport: viewport
+                        };
+                        page.render(renderContext);
+                    });
+                }, function (reason) {
+                    // PDF loading error
+                    console.error(reason);
+                    canvas.style.display = 'none';
+                    fallback.innerHTML += `<p class="text-red-500 text-xs mt-2">Could not render preview.</p>`;
+                });
 
-                    contentEl.appendChild(wrapper);
-
-                    // Save blobUrl so we can revoke it later
-                    if (pdfUrl && pdfUrl.startsWith('blob:')) {
-                        wrapper.dataset.blobUrl = pdfUrl;
-                    }
-
-                } catch (e) {
-                    console.error("Error creating PDF preview:", e);
-                    contentEl.innerHTML = '<p class="text-slate-500">Could not load PDF preview.</p>';
+                // Save blobUrl so we can revoke it later
+                if (pdfUrl && pdfUrl.startsWith('blob:')) {
+                    wrapper.dataset.blobUrl = pdfUrl;
                 }
             } else {
                 contentEl.innerHTML = '<p class="text-slate-500">Preview is not available for this file type.</p>';
@@ -698,7 +718,7 @@
                 modal.querySelector('#preview-modal-content').classList.add('scale-100');
             });
         };
-
+		
         window.hidePreview = () => {
             const modal = document.getElementById('preview-modal');
             modal.classList.add('opacity-0');
@@ -1164,4 +1184,5 @@
         initApp();
     </script>
 </body>
+
 </html>
