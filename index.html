@@ -628,7 +628,7 @@
             window.showPreview(item.content, item.title, item.fileType);
         };
 
-window.showPreview = (content, title, fileType) => {
+       window.showPreview = (content, title, fileType) => {
             const modal = document.getElementById('preview-modal');
             const titleEl = document.getElementById('preview-title');
             const contentEl = document.getElementById('preview-content-area');
@@ -636,15 +636,15 @@ window.showPreview = (content, title, fileType) => {
             // Set title
             titleEl.textContent = escapeHtml(title);
             
-            // RESET: Clear content and reset scroll position to top
+            // RESET: Clear content and scroll to top
             contentEl.innerHTML = ''; 
             contentEl.scrollTop = 0; 
 
-            // RESET: Ensure default centering is ON (good for images)
-            contentEl.className = "p-4 flex-1 overflow-auto bg-slate-100 flex items-center justify-center";
-
             // --- IMAGE HANDLING ---
             if (fileType && fileType.startsWith('image/')) {
+                // Enable Flex centering for images so they look nice
+                contentEl.className = "p-4 flex-1 overflow-auto bg-slate-100 flex items-center justify-center";
+                
                 const img = document.createElement('img');
                 img.src = content;
                 img.className = "max-w-full max-h-full object-contain rounded-lg";
@@ -653,8 +653,9 @@ window.showPreview = (content, title, fileType) => {
             // --- PDF HANDLING (Render ALL Pages) ---
             } else if (fileType === 'application/pdf' || (typeof content === 'string' && content.startsWith('data:application/pdf'))) {
                 
-                // FIX: Remove centering classes so the PDF starts at the top
-                contentEl.classList.remove('items-center', 'justify-center');
+                // FIX FOR DESKTOP: Switch to "block" layout. 
+                // This disables vertical centering completely and forces the PDF to start at the top.
+                contentEl.className = "p-4 flex-1 overflow-auto bg-slate-100 block";
 
                 // Create a container for the PDF pages
                 const wrapper = document.createElement('div');
@@ -668,7 +669,7 @@ window.showPreview = (content, title, fileType) => {
                     pdfUrl = URL.createObjectURL(blob);
                 }
 
-                // Add "Download" Button at the TOP for easy access
+                // Add "Download" Button at the TOP
                 const downloadBtn = document.createElement('div');
                 downloadBtn.className = "w-full text-center mb-2";
                 downloadBtn.innerHTML = `
@@ -689,11 +690,12 @@ window.showPreview = (content, title, fileType) => {
                         const canvas = document.createElement('canvas');
                         canvas.className = "w-full h-auto border border-slate-200 rounded-lg shadow-sm bg-white mb-2";
                         canvas.id = `pdf-page-${pageNum}`;
-                        wrapper.appendChild(canvas); // Append immediately to keep order
+                        wrapper.appendChild(canvas); 
 
                         // Render the page
                         pdf.getPage(pageNum).then(function(page) {
-                            const scale = 1.5; // Good balance of quality vs mobile performance
+                            // Increased scale slightly for sharper desktop viewing
+                            const scale = 1.5; 
                             const viewport = page.getViewport({scale: scale});
                             const context = canvas.getContext('2d');
                             
@@ -718,6 +720,7 @@ window.showPreview = (content, title, fileType) => {
                     wrapper.dataset.blobUrl = pdfUrl;
                 }
             } else {
+                contentEl.className = "p-4 flex-1 overflow-auto bg-slate-100 flex items-center justify-center";
                 contentEl.innerHTML = '<p class="text-slate-500">Preview is not available for this file type.</p>';
             }
 
@@ -1197,6 +1200,7 @@ window.showPreview = (content, title, fileType) => {
 </body>
 
 </html>
+
 
 
 
