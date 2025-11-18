@@ -721,15 +721,6 @@
             });
         };
 
-            // Show modal
-            modal.classList.remove('hidden');
-            requestAnimationFrame(() => {
-                modal.classList.remove('opacity-0');
-                modal.querySelector('#preview-modal-content').classList.remove('scale-95');
-                modal.querySelector('#preview-modal-content').classList.add('scale-100');
-            });
-        };
-		
         window.hidePreview = () => {
             const modal = document.getElementById('preview-modal');
             modal.classList.add('opacity-0');
@@ -1197,4 +1188,5 @@
 </body>
 
 </html>
+
 
